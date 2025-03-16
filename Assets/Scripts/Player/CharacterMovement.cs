@@ -12,7 +12,7 @@ public class CharacterMovement : MonoBehaviour
 
     // ============================== Jump Settings =================================
     [Header("Jump Settings")]
-    [SerializeField] private float jumpForce = 5f;        // Jump force applied to the character
+    [SerializeField] private float jumpForce = 6f;        // Jump force applied to the character
     [SerializeField] private float groundCheckDistance = 1.1f; // Distance to check for ground contact (Raycast)
 
     // ============================== Modifiable from other scripts ==================
@@ -26,12 +26,14 @@ public class CharacterMovement : MonoBehaviour
     private float moveX; // Stores horizontal movement input (A/D or Left/Right Arrow)
     private float moveZ; // Stores vertical movement input (W/S or Up/Down Arrow)
     private bool jumpRequest; // Flag to check if the player requested a jump
+    private int jumpCount; //counter of the level of jumps 
     private Vector3 moveDirection; // Stores the calculated movement direction
+    private bool hasDoubleJumpPowerUp = false;
 
     // ============================== Animation Variables ==============================
     [Header("Anim values")]
     public float groundSpeed; // Speed value used for animations
-
+    public bool DoubleJump => (jumpCount ==2 && hasDoubleJumpPowerUp);
     // ============================== Character State Properties ==============================
     /// <summary>
     /// Checks if the character is currently grounded using a Raycast.
@@ -155,15 +157,24 @@ public class CharacterMovement : MonoBehaviour
     /// Handles jumping by applying an impulse force if the character is grounded.
     /// </summary>
     private void HandleJump()
+{
+    // Check if jump was requested
+    if (jumpRequest)
     {
-        // Apply jump force only if jump was requested and the character is grounded
-        if (jumpRequest && IsGrounded)
+        // Allow jump if grounded or if jump count is less than 2 (enabling double jump)
+        if (IsGrounded || (jumpCount < 2 && hasDoubleJumpPowerUp))
         {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse); // Apply force upwards
-            jumpRequest = false; // Reset jump request after applying jump
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse); // Apply upward force
+            jumpCount++; // Increment jump count
+            jumpRequest = false; // Reset jump request
         }
     }
-
+    // Reset jump count when grounded
+    if (IsGrounded)
+    {
+        jumpCount = 0;
+    }
+}
     /// <summary>
     /// Rotates the character towards the movement direction.
     /// </summary>
@@ -198,5 +209,41 @@ public class CharacterMovement : MonoBehaviour
 
         // Apply the new velocity directly
         rb.velocity = newVelocity;
+    }
+    //=============TRAP HANDLING================
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Trap"))
+        {
+            GameManager.Instance.ChangeLives(-1); // Lose a life
+        }
+    }
+    //jump power up
+    public void ActivateJumpBoost(float duration)
+    {
+        hasDoubleJumpPowerUp = true;
+        Debug.Log("Jump boost activated!");
+        Invoke("ResetJump", duration);
+    }
+
+    private void ResetJump()
+    {
+        hasDoubleJumpPowerUp = false;
+        Debug.Log("Jump boost ended!");
+    }
+
+    public void ActivateSpeedBoost(float duration)
+    {
+        baseRunSpeed =8f;
+        baseWalkSpeed =12f;
+        Debug.Log("Speed boost activated!");
+        Invoke("ResetSpeed", duration);
+    }
+
+    private void ResetSpeed()
+    {
+        baseRunSpeed =5f;
+        baseWalkSpeed = 8f;
+        Debug.Log("Speed boost ended!");
     }
 }
